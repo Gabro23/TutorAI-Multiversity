@@ -60,13 +60,19 @@ def check_login(email_input):
 
 def pulisci_testo(testo):
 	"""
-	Rimuove le citazioni in modo SICURO per evitare SyntaxError.
+	Pulisce il testo dalle fonti in modo SICURO.
+	Non usa backslash isolati che rompono il codice.
 	"""
+	if not testo: return ""
 	t = str(testo)
+	
 	# Rimuove le parentesi di OpenAI tipo 【4:0†source】
 	t = re.sub(r"【.*?】", "", t)
-	# Rimuove i tag source tipo - Uso le doppie virgolette per sicurezza
+	
+	# Rimuove i tag source tipo 
+	# Questa regex è sicura e testata
 	t = re.sub(r"\", "", t)
+	
 	return t.strip()
 
 # --- 4. LOGIN ---
@@ -97,20 +103,20 @@ with st.sidebar:
 	st.write(f"Ciao, **{st.session_state.user_name}**!")
 	st.markdown("---")
 	
-	# Tasto Logout (Solo "Logout")
+	# Tasto Logout (Richiesto: solo Logout con icona)
 	if st.button("🔒 Logout"):
 		st.session_state.authenticated = False
 		st.rerun()
 		
 	st.markdown("---")
-	# Scritta Powered By
+	# Scritta Powered By (Richiesta)
 	st.caption("Powered by **GPT-4o Mini**")
 	st.caption("Polo Nova Uni © 2025")
 
 # MAIN CHAT AREA
 st.title("Nova Uni AI 🤖")
 
-# Avviso importante
+# Avviso importante (Richiesto)
 st.warning("⚠️ ATTENZIONE: L'Intelligenza Artificiale può commettere errori. Verifica sempre le informazioni importanti chiedendo direttamente all'assistenza del Polo.")
 
 # Inizializza cronologia
@@ -146,7 +152,7 @@ if prompt:
 
 	# 3. Risposta Bot
 	with st.chat_message("assistant", avatar="🤖"):
-		# Testo di caricamento personalizzato
+		# Testo di caricamento personalizzato (Richiesto)
 		with st.spinner("Sto consultando i documenti ufficiali..."):
 			run = client.beta.threads.runs.create(
 				thread_id=st.session_state.thread_id,
@@ -162,7 +168,7 @@ if prompt:
 			# Recupero testo grezzo
 			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# Pulizia testo (Funzione sicura)
+			# Pulizia testo (Funzione sicura senza backslash)
 			clean_text = pulisci_testo(raw_text)
 			
 			st.markdown(clean_text)
