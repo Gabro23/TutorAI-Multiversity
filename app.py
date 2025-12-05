@@ -7,9 +7,12 @@ import re
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS: Bottoni Blu, Testo che si adatta (bianco su scuro)
+# CSS SICURO PER DARK MODE
+# Non tocchiamo i colori dei titoli (così restano bianchi sul nero).
+# Coloriamo solo i bottoni di blu.
 st.markdown("""
 	<style>
+	/* Nascondi menu e footer */
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
@@ -27,7 +30,7 @@ st.markdown("""
 		color: white !important;
 	}
 	
-	/* Arrotondamento messaggi */
+	/* Arrotondamento messaggi chat */
 	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
@@ -59,11 +62,11 @@ def check_login(email_input):
 		return None
 
 def pulisci_testo(testo):
-	# Converte in stringa
+	# Converte in stringa per sicurezza
 	t = str(testo)
 	# Rimuove le parentesi di OpenAI
 	t = t.replace("【", "").replace("】", "")
-	# Rimuove i tag source (Modificato per essere sicuro al 100%)
+	# Rimuove i tag source tipo usando una regex semplice e sicura
 	t = re.sub(r"\", "", t)
 	return t.strip()
 
@@ -72,6 +75,7 @@ if "authenticated" not in st.session_state:
 	st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
+	# Titolo con emoji
 	st.markdown("<h1 style='text-align: center;'>Nova Uni AI 🤖</h1>", unsafe_allow_html=True)
 	
 	col1, col2, col3 = st.columns([1, 6, 1])
@@ -138,7 +142,7 @@ if prompt:
 			
 			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# Pulizia sicura
+			# Pulizia sicura (Nessun backslash qui!)
 			clean_text = pulisci_testo(raw_text)
 			
 			st.markdown(clean_text)
