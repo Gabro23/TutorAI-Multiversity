@@ -4,21 +4,33 @@ from openai import OpenAI
 import time
 
 # --- 1. CONFIGURAZIONE ---
-st.set_page_config(page_title="Tutor Nova Uni", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS BLU (Semplificato)
+# CSS CORRETTO (Leggibile sia su sfondo chiaro che scuro)
 st.markdown("""
 	<style>
+	/* Nascondiamo menu e footer */
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
-	h1, h2, h3 {color: #003366 !important;}
+	
+	/* I TITOLI ORA SI ADATTANO (Non forziamo il colore scuro) */
+	
+	/* BOTTONI BLU NOVA UNI (Testo bianco sempre leggibile) */
 	div.stButton > button {
 		background-color: #003366 !important;
 		color: white !important;
 		border: none;
 		border-radius: 8px;
+		font-weight: bold;
 	}
+	div.stButton > button:hover {
+		background-color: #004080 !important; /* Blu leggermente più chiaro al passaggio */
+		color: white !important;
+	}
+	
+	/* Arrotondamento messaggi chat */
+	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
 
@@ -33,7 +45,7 @@ except:
 
 client = OpenAI(api_key=api_key)
 
-# --- 3. FUNZIONI (SENZA REGEX) ---
+# --- 3. FUNZIONI (SENZA ERRORI) ---
 def check_login(email_input):
 	try:
 		url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
@@ -53,27 +65,35 @@ if "authenticated" not in st.session_state:
 	st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-	st.markdown("<h1 style='text-align: center;'>🏛️ Tutor Nova Uni</h1>", unsafe_allow_html=True)
-	email = st.text_input("📧 Email istituzionale")
-	if st.button("Accedi"):
-		nome = check_login(email)
-		if nome:
-			st.session_state.authenticated = True
-			st.session_state.user_name = nome
-			st.rerun()
-		else:
-			st.error("Email non trovata.")
+	# Titolo richiesto con Robot
+	st.markdown("<h1 style='text-align: center;'>Nova Uni AI 🤖</h1>", unsafe_allow_html=True)
+	
+	col1, col2, col3 = st.columns([1, 6, 1])
+	with col2:
+		# Solo "Email" come richiesto
+		email = st.text_input("Email")
+		
+		if st.button("Accedi", use_container_width=True):
+			nome = check_login(email)
+			if nome:
+				st.session_state.authenticated = True
+				st.session_state.user_name = nome
+				st.rerun()
+			else:
+				st.error("Email non trovata.")
 	st.stop()
 
 # --- 5. CHAT ---
 with st.sidebar:
-	st.title("🎓 Area Studenti")
+	st.title("Area Studenti")
 	st.write(f"Ciao, **{st.session_state.user_name}**!")
+	st.markdown("---")
 	if st.button("🚪 Esci"):
 		st.session_state.authenticated = False
 		st.rerun()
 
-st.markdown("## Tutor Multiversity 🤖")
+# Titolo interno
+st.title("Nova Uni AI 🤖")
 
 if "messages" not in st.session_state:
 	st.session_state.messages = []
@@ -82,11 +102,13 @@ if "thread_id" not in st.session_state:
 	thread = client.beta.threads.create()
 	st.session_state.thread_id = thread.id
 
+# Mostra messaggi
 for msg in st.session_state.messages:
 	icona = "🤖" if msg["role"] == "assistant" else "👤"
 	with st.chat_message(msg["role"], avatar=icona):
 		st.markdown(msg["content"])
 
+# Input utente
 prompt = st.chat_input("Scrivi qui la tua domanda...")
 
 if prompt:
@@ -109,12 +131,18 @@ if prompt:
 			while run.status != "completed":
 				time.sleep(0.5)
 				run = client.beta.threads.runs.retrieve(thread_id=st.session_state.thread_id, run_id=run.id)
+				if run.status == "failed":
+					 st.error("Errore risposta.")
+					 st.stop()
 			
-			# Recupero testo grezzo
+			# Recupero testo
 			full_response = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# PULIZIA MANUALE SENZA REGEX (Impossibile che dia SyntaxError)
+			# Pulizia sicura
 			full_response = full_response.replace("【", "").replace("】", "")
+			# Rimuove pattern tipo in modo semplice
+			import re
+			full_response = re.sub(r'\', '', full_response)
 			
 			st.markdown(full_response)
 			st.session_state.messages.append({"role": "assistant", "content": full_response})
