@@ -2,21 +2,19 @@ import streamlit as st
 import pandas as pd
 from openai import OpenAI
 import time
+import re
 
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS OTTIMIZZATO PER DARK MODE
-# Non forziamo i colori dei titoli, così Streamlit li fa bianchi in automatico sul nero.
-# Forziamo solo i Bottoni per essere Blu.
+# CSS: Testo leggibile su sfondo scuro, bottoni blu
 st.markdown("""
 	<style>
-	/* Nascondi menu e footer */
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
 	
-	/* BOTTONI BLU NOVA UNI */
+	/* Bottoni Blu */
 	div.stButton > button {
 		background-color: #003366 !important;
 		color: white !important;
@@ -29,18 +27,18 @@ st.markdown("""
 		color: white !important;
 	}
 	
-	/* Chat bubbles arrotondate */
+	/* Chat */
 	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
 
-# --- 2. RECUPERO SECRETS ---
+# --- 2. RECUPERO CHIAVI ---
 try:
 	api_key = st.secrets["OPENAI_API_KEY"]
 	assistant_id = st.secrets["ASSISTANT_ID"]
 	sheet_id = st.secrets["SHEET_ID"]
 except:
-	st.error("⚠️ Secrets mancanti. Controlla le impostazioni su Streamlit.")
+	st.error("⚠️ Secrets mancanti.")
 	st.stop()
 
 client = OpenAI(api_key=api_key)
@@ -59,6 +57,15 @@ def check_login(email_input):
 		return None
 	except:
 		return None
+
+def pulisci_testo(testo):
+	# Converte in stringa per sicurezza
+	t = str(testo)
+	# Rimuove le parentesi di OpenAI (metodo semplice .replace)
+	t = t.replace("【", "").replace("】", "")
+	# Rimuove i tag usando i doppi apici per evitare errori
+	t = re.sub(r"\", "", t)
+	return t.strip()
 
 # --- 4. LOGIN ---
 if "authenticated" not in st.session_state:
@@ -130,13 +137,10 @@ if prompt:
 					st.stop()
 			
 			# Recupero risposta
-			full_response = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
+			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# PULIZIA MANUALE (SENZA REGEX PER EVITARE ERRORI)
-			full_response = full_response.replace("【", "").replace("】", "")
+			# Pulizia sicura
+			clean_text = pulisci_testo(raw_text)
 			
-			# Rimuove le fonti source brutalmente ma in sicurezza
-			if "", "", full_response)
-
-			st.markdown(full_response)
-			st.session_state.messages.append({"role": "assistant", "content": full_response})
+			st.markdown(clean_text)
+			st.session_state.messages.append({"role": "assistant", "content": clean_text})
