@@ -2,16 +2,44 @@ import streamlit as st
 import pandas as pd
 from openai import OpenAI
 import time
+import re
 
-# --- 1. CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="Tutor Multiversity", page_icon="🎓")
+# --- 1. CONFIGURAZIONE PAGINA E STILE ---
+st.set_page_config(page_title="Tutor Nova Uni", page_icon="🎓", layout="centered")
 
-# CSS per nascondere menu e footer (modalità pulita)
+# CSS PERSONALIZZATO: Qui cambiamo i colori da Rosso a Blu!
 st.markdown("""
 	<style>
+	/* Nasconde menu hamburger e footer standard */
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
+	
+	/* TITOLI: Blu Istituzionale */
+	h1, h2, h3 {
+		color: #003366 !important; 
+		font-family: 'Helvetica', sans-serif;
+	}
+	
+	/* BOTTONI (Esci, Accedi, ecc): Diventano BLU invece che Rossi */
+	div.stButton > button {
+		background-color: #003366 !important; /* Blu scuro */
+		color: white !important;
+		border: none;
+		border-radius: 8px;
+		padding: 10px 20px;
+		font-weight: bold;
+	}
+	/* Quando passi sopra col mouse diventa un po' più chiaro */
+	div.stButton > button:hover {
+		background-color: #004080 !important;
+		color: white !important;
+	}
+
+	/* MESSAGGI CHAT: Arrotondati e puliti */
+	.stChatMessage {
+		border-radius: 15px;
+	}
 	</style>
 	""", unsafe_allow_html=True)
 
@@ -19,127 +47,146 @@ st.markdown("""
 try:
 	api_key = st.secrets["OPENAI_API_KEY"]
 	assistant_id = st.secrets["ASSISTANT_ID"]
-	sheet_id = st.secrets["SHEET_ID"] # Legge l'ID del foglio dai Secrets
+	sheet_id = st.secrets["SHEET_ID"]
 except FileNotFoundError:
-	st.error("⚠️ Errore: Secrets non trovati. Controlla le impostazioni su Streamlit Cloud.")
+	st.error("⚠️ Errore Configurazione: Secrets non trovati.")
 	st.stop()
 
 client = OpenAI(api_key=api_key)
 
-# --- 3. FUNZIONE DI LOGIN (GOOGLE SHEETS) ---
+# --- 3. FUNZIONI UTILI ---
 def check_login(email_input):
-	"""Controlla se la mail è abilitata leggendo dal Google Sheet"""
+	"""Controlla login via Google Sheet"""
 	try:
-		# Costruisce l'URL per scaricare il CSV da Google
 		url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
-		
-		# Legge i dati direttamente da Internet
 		df = pd.read_csv(url, dtype=str)
-		
-		# Puliamo l'email inserita dall'utente (minuscolo e senza spazi)
 		email_clean = email_input.strip().lower()
 		
-		# Verifichiamo se la colonna 'email' esiste nel foglio
 		if 'email' in df.columns:
-			# Puliamo anche le email nel foglio per essere sicuri
 			df['email'] = df['email'].astype(str).str.strip().str.lower()
-			
-			# Cerchiamo l'utente
 			user = df[df['email'] == email_clean]
-			
 			if not user.empty:
-				# Se trovato, restituisce il nome
 				return user.iloc[0]['nome_studente']
 		return None
-			
 	except Exception as e:
-		st.error(f"Errore di connessione al database studenti: {e}")
+		st.error(f"Errore connessione database: {e}")
 		return None
 
-# --- 4. GESTIONE SESSIONE (LOGIN) ---
+def pulisci_testo(testo):
+	"""Rimuove annotazioni e 【4:0†source】"""
+	testo = re.sub(r'【.*?】', '', testo)
+	testo = re.sub(r'\', '', testo)
+	return testo.strip()
+
+# --- 4. GESTIONE LOGIN ---
 if "authenticated" not in st.session_state:
 	st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-	st.markdown("<h1 style='text-align: center;'>🎓 Tutor Multiversity</h1>", unsafe_allow_html=True)
-	st.markdown("<p style='text-align: center;'>Accesso riservato agli studenti del Polo</p>", unsafe_allow_html=True)
-	
-	col1, col2, col3 = st.columns([1,2,1])
+	col1, col2, col3 = st.columns([1, 6, 1])
 	with col2:
-		email_input = st.text_input("Inserisci la tua Email istituzionale", placeholder="nome.cognome@email.it")
+		st.markdown("<br><br>", unsafe_allow_html=True)
+		# Ho rimosso l'immagine che dava errore. Mettiamo solo un titolo elegante.
+		st.markdown("<h1 style='text-align: center;'>🏛️ Tutor Nova Uni</h1>", unsafe_allow_html=True)
+		st.info("Benvenuto nell'Area Studenti Multiversity.")
 		
-		if st.button("Accedi", use_container_width=True):
-			if email_input:
-				nome_utente = check_login(email_input)
-				if nome_utente:
-					st.session_state.authenticated = True
-					st.session_state.user_name = nome_utente
-					st.success(f"Benvenuto, {nome_utente}!")
-					time.sleep(1)
-					st.rerun()
+		email_input = st.text_input("📧 Inserisci la tua email istituzionale")
+		
+		# Questo bottone ora sarà BLU grazie al CSS sopra
+		if st.button("Accedi all'Area Riservata"):
+			with st.spinner("Verifica in corso..."):
+				if email_input:
+					nome = check_login(email_input)
+					if nome:
+						st.session_state.authenticated = True
+						st.session_state.user_name = nome
+						st.rerun()
+					else:
+						st.error("❌ Email non trovata o non abilitata.")
 				else:
-					st.error("Email non trovata nel database.")
-			else:
-				st.warning("Inserisci una email valida.")
-	
+					st.warning("Inserisci un indirizzo email.")
 	st.stop()
 
-# --- 5. INTERFACCIA CHAT ---
-# Sidebar
+# --- 5. INTERFACCIA PRINCIPALE ---
+
+# Sidebar 
 with st.sidebar:
-	st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Python_logo_notext.svg/1200px-Python_logo_notext.svg.png", width=50)
-	st.markdown(f"### Ciao, {st.session_state.user_name}! 👋")
+	st.title("🎓 Area Studenti")
+	st.write(f"Ciao, **{st.session_state.user_name}**!")
 	st.markdown("---")
-	if st.button("🚪 Esci", type="primary"):
+	
+	# Bottone Logout (Ora Blu)
+	if st.button("🚪 Esci"):
 		st.session_state.authenticated = False
 		st.rerun()
+		
 	st.markdown("---")
-	st.caption("🤖 Powered by **GPT-4o Mini**")
+	st.caption("Polo Nova Uni © 2025")
+	st.caption("Powered by AI")
 
-# Chat
-st.title("Assistente Virtuale 🤖")
-st.warning("⚠️ L'IA può commettere errori. Verifica sempre le info importanti.")
+# Intestazione Chat
+st.markdown(f"## Tutor Multiversity 🤖")
+st.markdown("*Chiedimi informazioni su esami, tasse, tesi e tirocini.*")
+st.markdown("---")
 
+# Inizializzazione Chat
 if "messages" not in st.session_state:
 	st.session_state.messages = []
+	st.session_state.messages.append({"role": "assistant", "content": f"Ciao {st.session_state.user_name}! Come posso aiutarti oggi?"})
 
 if "thread_id" not in st.session_state:
 	thread = client.beta.threads.create()
 	st.session_state.thread_id = thread.id
 
+# Mostra Cronologia Chat
 for msg in st.session_state.messages:
-	with st.chat_message(msg["role"]):
-		st.markdown(msg["content"])
+	# Qui impostiamo le icone: Robot per assistente, Persona per utente
+	if msg["role"] == "assistant":
+		with st.chat_message("assistant", avatar="🤖"):
+			st.markdown(msg["content"])
+	else:
+		with st.chat_message("user", avatar="👤"):
+			st.markdown(msg["content"])
 
-if prompt := st.chat_input("Chiedimi info su esami, tesi, tasse..."):
+# INPUT UTENTE
+prompt = st.chat_input("Scrivi qui la tua domanda...")
+
+if prompt:
+	# 1. Mostra domanda utente
 	st.session_state.messages.append({"role": "user", "content": prompt})
-	with st.chat_message("user"):
+	with st.chat_message("user", avatar="👤"):
 		st.markdown(prompt)
 
+	# 2. Invia a OpenAI
 	client.beta.threads.messages.create(
 		thread_id=st.session_state.thread_id,
 		role="user",
 		content=prompt
 	)
 
-	with st.chat_message("assistant"):
-		with st.spinner("Consulto i regolamenti..."):
+	# 3. Risposta Bot
+	with st.chat_message("assistant", avatar="🤖"):
+		message_placeholder = st.empty()
+		with st.spinner("Sto consultando i documenti ufficiali..."):
 			run = client.beta.threads.runs.create(
 				thread_id=st.session_state.thread_id,
 				assistant_id=assistant_id
 			)
+			
 			while run.status != "completed":
 				time.sleep(0.5)
 				run = client.beta.threads.runs.retrieve(thread_id=st.session_state.thread_id, run_id=run.id)
-				if run.status == "failed": 
-					st.error("Errore tecnico."); st.stop()
+				if run.status == "failed":
+					st.error("Si è verificato un errore tecnico.")
+					st.stop()
 			
 			msgs = client.beta.threads.messages.list(thread_id=st.session_state.thread_id)
 			raw_text = msgs.data[0].content[0].text.value
 			
-			# Pulizia source
-			import re
-			clean_text = re.sub(r'【.*?】', '', raw_text)
+			# Pulizia testo finale
+			final_text = pulisci_testo(raw_text)
 			
-			st.markdown(clean_text)
-			st.session_state.messages.append({"role": "assistant", "content": clean_text})
+			message_placeholder.markdown(final_text)
+			
+			# Salva cronologia
+			st.session_state.messages.append({"role": "assistant", "content": final_text})
