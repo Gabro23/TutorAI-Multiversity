@@ -6,17 +6,17 @@ import time
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS CORRETTO (Leggibile sia su sfondo chiaro che scuro)
+# CSS OTTIMIZZATO PER DARK MODE
+# Non forziamo i colori dei titoli, così Streamlit li fa bianchi in automatico sul nero.
+# Forziamo solo i Bottoni per essere Blu.
 st.markdown("""
 	<style>
-	/* Nascondiamo menu e footer */
+	/* Nascondi menu e footer */
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
 	
-	/* I TITOLI ORA SI ADATTANO (Non forziamo il colore scuro) */
-	
-	/* BOTTONI BLU NOVA UNI (Testo bianco sempre leggibile) */
+	/* BOTTONI BLU NOVA UNI */
 	div.stButton > button {
 		background-color: #003366 !important;
 		color: white !important;
@@ -25,27 +25,27 @@ st.markdown("""
 		font-weight: bold;
 	}
 	div.stButton > button:hover {
-		background-color: #004080 !important; /* Blu leggermente più chiaro al passaggio */
+		background-color: #004080 !important;
 		color: white !important;
 	}
 	
-	/* Arrotondamento messaggi chat */
+	/* Chat bubbles arrotondate */
 	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
 
-# --- 2. SECRETS ---
+# --- 2. RECUPERO SECRETS ---
 try:
 	api_key = st.secrets["OPENAI_API_KEY"]
 	assistant_id = st.secrets["ASSISTANT_ID"]
 	sheet_id = st.secrets["SHEET_ID"]
 except:
-	st.error("⚠️ Manca il file Secrets. Controlla le impostazioni su Streamlit.")
+	st.error("⚠️ Secrets mancanti. Controlla le impostazioni su Streamlit.")
 	st.stop()
 
 client = OpenAI(api_key=api_key)
 
-# --- 3. FUNZIONI (SENZA ERRORI) ---
+# --- 3. FUNZIONI ---
 def check_login(email_input):
 	try:
 		url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
@@ -65,14 +65,11 @@ if "authenticated" not in st.session_state:
 	st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-	# Titolo richiesto con Robot
 	st.markdown("<h1 style='text-align: center;'>Nova Uni AI 🤖</h1>", unsafe_allow_html=True)
 	
 	col1, col2, col3 = st.columns([1, 6, 1])
 	with col2:
-		# Solo "Email" come richiesto
 		email = st.text_input("Email")
-		
 		if st.button("Accedi", use_container_width=True):
 			nome = check_login(email)
 			if nome:
@@ -92,7 +89,6 @@ with st.sidebar:
 		st.session_state.authenticated = False
 		st.rerun()
 
-# Titolo interno
 st.title("Nova Uni AI 🤖")
 
 if "messages" not in st.session_state:
@@ -102,13 +98,11 @@ if "thread_id" not in st.session_state:
 	thread = client.beta.threads.create()
 	st.session_state.thread_id = thread.id
 
-# Mostra messaggi
 for msg in st.session_state.messages:
 	icona = "🤖" if msg["role"] == "assistant" else "👤"
 	with st.chat_message(msg["role"], avatar=icona):
 		st.markdown(msg["content"])
 
-# Input utente
 prompt = st.chat_input("Scrivi qui la tua domanda...")
 
 if prompt:
@@ -132,17 +126,17 @@ if prompt:
 				time.sleep(0.5)
 				run = client.beta.threads.runs.retrieve(thread_id=st.session_state.thread_id, run_id=run.id)
 				if run.status == "failed":
-					 st.error("Errore risposta.")
-					 st.stop()
+					st.error("Errore tecnico.")
+					st.stop()
 			
-			# Recupero testo
+			# Recupero risposta
 			full_response = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# Pulizia sicura
+			# PULIZIA MANUALE (SENZA REGEX PER EVITARE ERRORI)
 			full_response = full_response.replace("【", "").replace("】", "")
-			# Rimuove pattern tipo in modo semplice
-			import re
-			full_response = re.sub(r'\', '', full_response)
 			
+			# Rimuove le fonti source brutalmente ma in sicurezza
+			if "", "", full_response)
+
 			st.markdown(full_response)
 			st.session_state.messages.append({"role": "assistant", "content": full_response})
