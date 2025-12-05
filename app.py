@@ -7,14 +7,14 @@ import re
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS: Bottoni Blu, Testo leggibile, Nascondere menu standard
+# CSS: Stile Bottoni Blu e interfaccia pulita
 st.markdown("""
 	<style>
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
 	
-	/* Bottoni Blu Nova Uni */
+	/* Bottoni Blu */
 	div.stButton > button {
 		background-color: #003366 !important;
 		color: white !important;
@@ -27,7 +27,7 @@ st.markdown("""
 		color: white !important;
 	}
 	
-	/* Messaggi Chat arrotondati */
+	/* Chat bubbles arrotondate */
 	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
@@ -60,8 +60,7 @@ def check_login(email_input):
 
 def pulisci_testo(testo):
 	"""
-	Pulisce il testo dalle fonti in modo SICURO.
-	Non usa backslash isolati che rompono il codice.
+	Pulisce il testo dalle fonti.
 	"""
 	if not testo: return ""
 	t = str(testo)
@@ -70,7 +69,7 @@ def pulisci_testo(testo):
 	t = re.sub(r"【.*?】", "", t)
 	
 	# Rimuove i tag source tipo 
-	# Questa regex è sicura e testata
+	# Questa regex è sicura (usa escape corretto per le quadre)
 	t = re.sub(r"\", "", t)
 	
 	return t.strip()
@@ -95,7 +94,7 @@ if not st.session_state.authenticated:
 				st.error("Email non trovata.")
 	st.stop()
 
-# --- 5. INTERFACCIA PRINCIPALE (DOPO LOGIN) ---
+# --- 5. INTERFACCIA PRINCIPALE ---
 
 # SIDEBAR
 with st.sidebar:
@@ -103,32 +102,31 @@ with st.sidebar:
 	st.write(f"Ciao, **{st.session_state.user_name}**!")
 	st.markdown("---")
 	
-	# Tasto Logout (Richiesto: solo Logout con icona)
+	# Tasto Logout (Icona lucchetto)
 	if st.button("🔒 Logout"):
 		st.session_state.authenticated = False
 		st.rerun()
 		
 	st.markdown("---")
-	# Scritta Powered By (Richiesta)
 	st.caption("Powered by **GPT-4o Mini**")
 	st.caption("Polo Nova Uni © 2025")
 
-# MAIN CHAT AREA
+# CHAT AREA
 st.title("Nova Uni AI 🤖")
 
-# Avviso importante (Richiesto)
+# Avviso Giallo (Warning)
 st.warning("⚠️ ATTENZIONE: L'Intelligenza Artificiale può commettere errori. Verifica sempre le informazioni importanti chiedendo direttamente all'assistenza del Polo.")
 
 # Inizializza cronologia
 if "messages" not in st.session_state:
 	st.session_state.messages = []
 
-# Inizializza Thread OpenAI
+# Inizializza Thread
 if "thread_id" not in st.session_state:
 	thread = client.beta.threads.create()
 	st.session_state.thread_id = thread.id
 
-# Mostra messaggi precedenti
+# Mostra messaggi
 for msg in st.session_state.messages:
 	icona = "🤖" if msg["role"] == "assistant" else "👤"
 	with st.chat_message(msg["role"], avatar=icona):
@@ -138,21 +136,18 @@ for msg in st.session_state.messages:
 prompt = st.chat_input("Scrivi qui la tua domanda...")
 
 if prompt:
-	# 1. Salva e mostra messaggio utente
 	st.session_state.messages.append({"role": "user", "content": prompt})
 	with st.chat_message("user", avatar="👤"):
 		st.markdown(prompt)
 
-	# 2. Invia a OpenAI
 	client.beta.threads.messages.create(
 		thread_id=st.session_state.thread_id,
 		role="user",
 		content=prompt
 	)
 
-	# 3. Risposta Bot
 	with st.chat_message("assistant", avatar="🤖"):
-		# Testo di caricamento personalizzato (Richiesto)
+		# Messaggio di caricamento personalizzato
 		with st.spinner("Sto consultando i documenti ufficiali..."):
 			run = client.beta.threads.runs.create(
 				thread_id=st.session_state.thread_id,
@@ -165,10 +160,9 @@ if prompt:
 					st.error("Errore tecnico nel recupero della risposta.")
 					st.stop()
 			
-			# Recupero testo grezzo
 			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# Pulizia testo (Funzione sicura senza backslash)
+			# Pulizia sicura
 			clean_text = pulisci_testo(raw_text)
 			
 			st.markdown(clean_text)
