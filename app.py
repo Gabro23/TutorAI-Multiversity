@@ -9,35 +9,35 @@ st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered"
 
 # CSS: Stile Bottoni Blu e interfaccia pulita
 st.markdown("""
-	<style>
-	#MainMenu {visibility: hidden;}
-	footer {visibility: hidden;}
-	header {visibility: hidden;}
-	
-	/* Bottoni Blu */
-	div.stButton > button {
-		background-color: #003366 !important;
-		color: white !important;
-		border: none;
-		border-radius: 8px;
-		font-weight: bold; 
-	}
-	div.stButton > button:hover {
-		background-color: #004080 !important;
-		color: white !important;
-	}
-	
-	/* Chat bubbles arrotondate */
-	.stChatMessage {border-radius: 15px;}
-	</style>
-	""", unsafe_allow_html=True)
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Bottoni Blu */
+div.stButton > button {
+	background-color: #003366 !important;
+	color: white !important;
+	border: none;
+	border-radius: 8px;
+	font-weight: bold; 
+}
+div.stButton > button:hover {
+	background-color: #004080 !important;
+	color: white !important;
+}
+
+/* Chat bubbles arrotondate */
+.stChatMessage {border-radius: 15px;}
+</style>
+""", unsafe_allow_html=True)
 
 # --- 2. RECUPERO CHIAVI ---
 try:
 	api_key = st.secrets["OPENAI_API_KEY"]
 	assistant_id = st.secrets["ASSISTANT_ID"]
 	sheet_id = st.secrets["SHEET_ID"]
-except:
+except Exception as e:
 	st.error("⚠️ Secrets mancanti. Controlla le impostazioni su Streamlit.")
 	st.stop()
 
@@ -45,6 +45,7 @@ client = OpenAI(api_key=api_key)
 
 # --- 3. FUNZIONI ---
 def check_login(email_input):
+	"""Verifica se l'email esiste nel Google Sheet"""
 	try:
 		url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
 		df = pd.read_csv(url, dtype=str)
@@ -55,22 +56,27 @@ def check_login(email_input):
 			if not res.empty:
 				return res.iloc[0]['nome_studente']
 		return None
-	except:
+	except Exception as e:
+		st.error(f"Errore nel caricamento dei dati: {e}")
 		return None
 
 def pulisci_testo(testo):
-	"""
-	Pulisce il testo dalle fonti.
-	"""
-	if not testo: return ""
+	"""Pulisce il testo dalle fonti e citazioni"""
+	if not testo:
+		return ""
 	t = str(testo)
 	
 	# Rimuove le parentesi di OpenAI tipo 【4:0†source】
 	t = re.sub(r"【.*?】", "", t)
 	
-	# Rimuove i tag source tipo 
-	# Questa regex è sicura e non usa backslash isolati
-	t = re.sub(r"\", "", t)
+	# Rimuove i tag source tipo <source>...</source>
+	t = re.sub(r"<source>.*?</source>", "", t, flags=re.DOTALL)
+	
+	# Rimuove eventuali riferimenti numerati tipo [1], [2], etc.
+	t = re.sub(r"\[\d+\]", "", t)
+	
+	# Rimuove spazi multipli e pulisce
+	t = re.sub(r"\s+", " ", t)
 	
 	return t.strip()
 
@@ -83,15 +89,18 @@ if not st.session_state.authenticated:
 	
 	col1, col2, col3 = st.columns([1, 6, 1])
 	with col2:
-		email = st.text_input("Email")
+		email = st.text_input("Email", placeholder="Inserisci la tua email")
 		if st.button("Accedi", use_container_width=True):
-			nome = check_login(email)
-			if nome:
-				st.session_state.authenticated = True
-				st.session_state.user_name = nome
-				st.rerun()
+			if email:
+				nome = check_login(email)
+				if nome:
+					st.session_state.authenticated = True
+					st.session_state.user_name = nome
+					st.rerun()
+				else:
+					st.error("❌ Email non trovata nel sistema.")
 			else:
-				st.error("Email non trovata.")
+				st.warning("⚠️ Inserisci un'email valida.")
 	st.stop()
 
 # --- 5. INTERFACCIA PRINCIPALE ---
@@ -99,14 +108,15 @@ if not st.session_state.authenticated:
 # SIDEBAR
 with st.sidebar:
 	st.title("Area Studenti")
-	st.write(f"Ciao, **{st.session_state.user_name}**!")
+	st.write(f"Ciao, **{st.session_state.user_name}**! 👋")
 	st.markdown("---")
 	
-	# Tasto Logout (Icona lucchetto)
-	if st.button("🔒 Logout"):
-		st.session_state.authenticated = False
+	# Tasto Logout
+	if st.button("🔒 Logout", use_container_width=True):
+		for key in list(st.session_state.keys()):
+			del st.session_state[key]
 		st.rerun()
-		
+	
 	st.markdown("---")
 	st.caption("Powered by **GPT-4o Mini**")
 	st.caption("Polo Nova Uni © 2025")
@@ -114,8 +124,8 @@ with st.sidebar:
 # CHAT AREA
 st.title("Nova Uni AI 🤖")
 
-# Avviso Giallo (Warning)
-st.warning("⚠️ ATTENZIONE: L'Intelligenza Artificiale può commettere errori. Verifica sempre le informazioni importanti chiedendo direttamente all'assistenza del Polo.")
+# Avviso
+st.warning("⚠️ **ATTENZIONE**: L'Intelligenza Artificiale può commettere errori. Verifica sempre le informazioni importanti chiedendo direttamente all'assistenza del Polo.")
 
 # Inizializza cronologia
 if "messages" not in st.session_state:
@@ -123,8 +133,12 @@ if "messages" not in st.session_state:
 
 # Inizializza Thread
 if "thread_id" not in st.session_state:
-	thread = client.beta.threads.create()
-	st.session_state.thread_id = thread.id
+	try:
+		thread = client.beta.threads.create()
+		st.session_state.thread_id = thread.id
+	except Exception as e:
+		st.error(f"Errore nella creazione del thread: {e}")
+		st.stop()
 
 # Mostra messaggi
 for msg in st.session_state.messages:
@@ -136,34 +150,62 @@ for msg in st.session_state.messages:
 prompt = st.chat_input("Scrivi qui la tua domanda...")
 
 if prompt:
+	# Aggiungi messaggio utente
 	st.session_state.messages.append({"role": "user", "content": prompt})
 	with st.chat_message("user", avatar="👤"):
 		st.markdown(prompt)
 
-	client.beta.threads.messages.create(
-		thread_id=st.session_state.thread_id,
-		role="user",
-		content=prompt
-	)
+	# Invia messaggio all'assistente
+	try:
+		client.beta.threads.messages.create(
+			thread_id=st.session_state.thread_id,
+			role="user",
+			content=prompt
+		)
 
-	with st.chat_message("assistant", avatar="🤖"):
-		# Messaggio di caricamento personalizzato
-		with st.spinner("Sto consultando i documenti ufficiali..."):
-			run = client.beta.threads.runs.create(
-				thread_id=st.session_state.thread_id,
-				assistant_id=assistant_id
-			)
-			while run.status != "completed":
-				time.sleep(0.5)
-				run = client.beta.threads.runs.retrieve(thread_id=st.session_state.thread_id, run_id=run.id)
-				if run.status == "failed":
-					st.error("Errore tecnico nel recupero della risposta.")
+		with st.chat_message("assistant", avatar="🤖"):
+			with st.spinner("Sto consultando i documenti ufficiali..."):
+				# Crea run
+				run = client.beta.threads.runs.create(
+					thread_id=st.session_state.thread_id,
+					assistant_id=assistant_id
+				)
+				
+				# Attendi completamento
+				max_attempts = 60  # Timeout dopo 30 secondi
+				attempts = 0
+				while run.status != "completed" and attempts < max_attempts:
+					time.sleep(0.5)
+					run = client.beta.threads.runs.retrieve(
+						thread_id=st.session_state.thread_id, 
+						run_id=run.id
+					)
+					attempts += 1
+					
+					if run.status == "failed":
+						st.error("❌ Errore tecnico nel recupero della risposta.")
+						st.stop()
+				
+				if attempts >= max_attempts:
+					st.error("⏱️ Timeout: la risposta sta impiegando troppo tempo.")
 					st.stop()
-			
-			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
-			
-			# Pulizia sicura
-			clean_text = pulisci_testo(raw_text)
-			
-			st.markdown(clean_text)
-			st.session_state.messages.append({"role": "assistant", "content": clean_text})
+				
+				# Recupera risposta
+				messages = client.beta.threads.messages.list(
+					thread_id=st.session_state.thread_id
+				)
+				raw_text = messages.data[0].content[0].text.value
+				
+				# Pulizia
+				clean_text = pulisci_testo(raw_text)
+				
+				# Mostra risposta
+				st.markdown(clean_text)
+				st.session_state.messages.append({
+					"role": "assistant", 
+					"content": clean_text
+				})
+	
+	except Exception as e:
+		st.error(f"❌ Errore durante la comunicazione con l'assistente: {e}")
+		st.stop()
