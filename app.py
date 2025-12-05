@@ -69,7 +69,7 @@ def pulisci_testo(testo):
 	t = re.sub(r"【.*?】", "", t)
 	
 	# Rimuove i tag source tipo 
-	# Questa regex è sicura (usa escape corretto per le quadre)
+	# Questa regex è sicura e non usa backslash isolati
 	t = re.sub(r"\", "", t)
 	
 	return t.strip()
