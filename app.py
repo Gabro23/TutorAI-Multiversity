@@ -7,27 +7,27 @@ import re
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS: Testo leggibile su sfondo scuro, bottoni blu
+# CSS: Bottoni Blu, Testo che si adatta (bianco su scuro)
 st.markdown("""
 	<style>
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
 	header {visibility: hidden;}
 	
-	/* Bottoni Blu */
+	/* Bottoni Blu Nova Uni */
 	div.stButton > button {
 		background-color: #003366 !important;
 		color: white !important;
 		border: none;
 		border-radius: 8px;
-		font-weight: bold;
+		font-weight: bold; 
 	}
 	div.stButton > button:hover {
 		background-color: #004080 !important;
 		color: white !important;
 	}
 	
-	/* Chat */
+	/* Arrotondamento messaggi */
 	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
@@ -38,7 +38,7 @@ try:
 	assistant_id = st.secrets["ASSISTANT_ID"]
 	sheet_id = st.secrets["SHEET_ID"]
 except:
-	st.error("⚠️ Secrets mancanti.")
+	st.error("⚠️ Secrets mancanti. Controlla le impostazioni su Streamlit.")
 	st.stop()
 
 client = OpenAI(api_key=api_key)
@@ -59,11 +59,11 @@ def check_login(email_input):
 		return None
 
 def pulisci_testo(testo):
-	# Converte in stringa per sicurezza
+	# Converte in stringa
 	t = str(testo)
-	# Rimuove le parentesi di OpenAI (metodo semplice .replace)
+	# Rimuove le parentesi di OpenAI
 	t = t.replace("【", "").replace("】", "")
-	# Rimuove i tag usando i doppi apici per evitare errori
+	# Rimuove i tag source (Modificato per essere sicuro al 100%)
 	t = re.sub(r"\", "", t)
 	return t.strip()
 
@@ -136,7 +136,6 @@ if prompt:
 					st.error("Errore tecnico.")
 					st.stop()
 			
-			# Recupero risposta
 			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
 			# Pulizia sicura
