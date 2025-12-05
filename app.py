@@ -2,11 +2,12 @@ import streamlit as st
 import pandas as pd
 from openai import OpenAI
 import time
+import re
 
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS: Bottoni Blu e Testo leggibile
+# CSS: Bottoni Blu, Testo leggibile, Nascondere menu standard
 st.markdown("""
 	<style>
 	#MainMenu {visibility: hidden;}
@@ -26,7 +27,7 @@ st.markdown("""
 		color: white !important;
 	}
 	
-	/* Arrotondamento messaggi */
+	/* Messaggi Chat arrotondati */
 	.stChatMessage {border-radius: 15px;}
 	</style>
 	""", unsafe_allow_html=True)
@@ -57,6 +58,17 @@ def check_login(email_input):
 	except:
 		return None
 
+def pulisci_testo(testo):
+	"""
+	Rimuove le citazioni in modo SICURO per evitare SyntaxError.
+	"""
+	t = str(testo)
+	# Rimuove le parentesi di OpenAI tipo 【4:0†source】
+	t = re.sub(r"【.*?】", "", t)
+	# Rimuove i tag source tipo - Uso le doppie virgolette per sicurezza
+	t = re.sub(r"\", "", t)
+	return t.strip()
+
 # --- 4. LOGIN ---
 if "authenticated" not in st.session_state:
 	st.session_state.authenticated = False
@@ -77,44 +89,65 @@ if not st.session_state.authenticated:
 				st.error("Email non trovata.")
 	st.stop()
 
-# --- 5. CHAT ---
+# --- 5. INTERFACCIA PRINCIPALE (DOPO LOGIN) ---
+
+# SIDEBAR
 with st.sidebar:
 	st.title("Area Studenti")
 	st.write(f"Ciao, **{st.session_state.user_name}**!")
 	st.markdown("---")
-	if st.button("🚪 Esci"):
+	
+	# Tasto Logout (Solo "Logout")
+	if st.button("🔒 Logout"):
 		st.session_state.authenticated = False
 		st.rerun()
+		
+	st.markdown("---")
+	# Scritta Powered By
+	st.caption("Powered by **GPT-4o Mini**")
+	st.caption("Polo Nova Uni © 2025")
 
+# MAIN CHAT AREA
 st.title("Nova Uni AI 🤖")
 
+# Avviso importante
+st.warning("⚠️ ATTENZIONE: L'Intelligenza Artificiale può commettere errori. Verifica sempre le informazioni importanti chiedendo direttamente all'assistenza del Polo.")
+
+# Inizializza cronologia
 if "messages" not in st.session_state:
 	st.session_state.messages = []
 
+# Inizializza Thread OpenAI
 if "thread_id" not in st.session_state:
 	thread = client.beta.threads.create()
 	st.session_state.thread_id = thread.id
 
+# Mostra messaggi precedenti
 for msg in st.session_state.messages:
 	icona = "🤖" if msg["role"] == "assistant" else "👤"
 	with st.chat_message(msg["role"], avatar=icona):
 		st.markdown(msg["content"])
 
+# Input utente
 prompt = st.chat_input("Scrivi qui la tua domanda...")
 
 if prompt:
+	# 1. Salva e mostra messaggio utente
 	st.session_state.messages.append({"role": "user", "content": prompt})
 	with st.chat_message("user", avatar="👤"):
 		st.markdown(prompt)
 
+	# 2. Invia a OpenAI
 	client.beta.threads.messages.create(
 		thread_id=st.session_state.thread_id,
 		role="user",
 		content=prompt
 	)
 
+	# 3. Risposta Bot
 	with st.chat_message("assistant", avatar="🤖"):
-		with st.spinner("..."):
+		# Testo di caricamento personalizzato
+		with st.spinner("Sto consultando i documenti ufficiali..."):
 			run = client.beta.threads.runs.create(
 				thread_id=st.session_state.thread_id,
 				assistant_id=assistant_id
@@ -123,14 +156,14 @@ if prompt:
 				time.sleep(0.5)
 				run = client.beta.threads.runs.retrieve(thread_id=st.session_state.thread_id, run_id=run.id)
 				if run.status == "failed":
-					st.error("Errore tecnico.")
+					st.error("Errore tecnico nel recupero della risposta.")
 					st.stop()
 			
-			# PRENDIAMO IL TESTO PURO SENZA TOCCARLO CON REGEX
-			full_response = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
+			# Recupero testo grezzo
+			raw_text = client.beta.threads.messages.list(thread_id=st.session_state.thread_id).data[0].content[0].text.value
 			
-			# Pulizia super-base sicura (solo replace)
-			full_response = full_response.replace("【", "").replace("】", "")
+			# Pulizia testo (Funzione sicura)
+			clean_text = pulisci_testo(raw_text)
 			
-			st.markdown(full_response)
-			st.session_state.messages.append({"role": "assistant", "content": full_response})
+			st.markdown(clean_text)
+			st.session_state.messages.append({"role": "assistant", "content": clean_text})
