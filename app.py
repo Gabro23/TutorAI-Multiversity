@@ -74,6 +74,7 @@ def check_login(email_input):
 
 def pulisci_testo(testo):
 	"""Rimuove annotazioni e 【4:0†source】"""
+	# Regex semplificate per evitare errori di sintassi
 	testo = re.sub(r'【.*?】', '', testo)
 	testo = re.sub(r'\', '', testo)
 	return testo.strip()
@@ -86,7 +87,7 @@ if not st.session_state.authenticated:
 	col1, col2, col3 = st.columns([1, 6, 1])
 	with col2:
 		st.markdown("<br><br>", unsafe_allow_html=True)
-		# Ho rimosso l'immagine che dava errore. Mettiamo solo un titolo elegante.
+		# Titolo elegante senza immagine rotta
 		st.markdown("<h1 style='text-align: center;'>🏛️ Tutor Nova Uni</h1>", unsafe_allow_html=True)
 		st.info("Benvenuto nell'Area Studenti Multiversity.")
 		
@@ -109,7 +110,7 @@ if not st.session_state.authenticated:
 
 # --- 5. INTERFACCIA PRINCIPALE ---
 
-# Sidebar 
+# Sidebar Pulita (Senza immagine rotta)
 with st.sidebar:
 	st.title("🎓 Area Studenti")
 	st.write(f"Ciao, **{st.session_state.user_name}**!")
