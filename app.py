@@ -10,7 +10,7 @@ from datetime import datetime
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS: Stile Bottoni Blu e interfaccia pulita
+# CSS
 st.markdown("""
 	<style>
 	#MainMenu {visibility: hidden;}
