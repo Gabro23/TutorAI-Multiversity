@@ -10,12 +10,15 @@ from datetime import datetime
 # --- 1. CONFIGURAZIONE ---
 st.set_page_config(page_title="Nova Uni AI", page_icon="🤖", layout="centered")
 
-# CSS
+# CSS 
 st.markdown("""
 	<style>
+	/* Nascondiamo solo il menu con i tre puntini a destra e il footer */
 	#MainMenu {visibility: hidden;}
 	footer {visibility: hidden;}
-	header {visibility: hidden;}
+	
+	/* NON NASCONDERE 'header' ALTRIMENTI SPARISCE LA FRECCIA PER RIAPRIRE IL MENU */
+	/* header {visibility: hidden;} */
 	
 	/* Bottoni Blu */
 	div.stButton > button {
